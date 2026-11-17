@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>우리 반 아틀라스 (2026)</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg: #fdf5f5;
+      --surface: #ffffff;
+      --surface-soft: #fff1f2;
+      --text: #271519;
+      --muted: #8a646c;
+      --border: #fce1e4;
+      --primary: #e11d48;
+      --primary-light: #fb7185;
+      --primary-pale: #ffe4e6;
+      --coral: #f97316;
+      --radius: 16px;
+      --shadow: 0 4px 20px rgba(225, 29, 72, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    /* Soft Light-Red Header */
+    header {
+      background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 55%, #fda4af 100%);
+      color: #881337;
+      padding: 34px 24px 58px;
+      border-bottom: 1px solid #fecdd3;
+    }
+
+    .container { max-width: 1240px; margin: 0 auto; }
+
+    .header-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .badge-date {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.65);
+      color: #9f1239;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    main {
+      margin-top: -32px;
+      padding: 0 24px 56px;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: #881337;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-value span {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    .progress-track {
+      margin-top: 10px;
+      height: 6px;
+      background: var(--primary-pale);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #fb7185, #e11d48);
+      border-radius: 999px;
+    }
+
+    /* Layout Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .col-7 { grid-column: span 7; }
+    .col-5 { grid-column: span 5; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+
+    @media (max-width: 960px) {
+      .col-7, .col-5, .col-6, .col-4 { grid-column: span 12; }
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #4c0519;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--surface-soft);
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
+    #map {
+      width: 100%;
+      height: 340px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      z-index: 1;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 260px;
+      width: 100%;
+    }
+
+    /* Compact Highlights */
+    .highlight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .mini-stat {
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mini-stat-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .mini-stat-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .treasure-groups {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .t-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      color: #881337;
+    }
+
+    .t-pill strong {
+      background: var(--primary);
+      color: #fff;
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: var(--surface);
+    }
+
+    .search-box input:focus {
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+    }
+
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill-btn {
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .pill-btn.active, .pill-btn:hover {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* Clean Scannable Student Cards */
+    .student-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .student-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(225, 29, 72, 0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .student-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(225, 29, 72, 0.09);
+    }
+
+    .student-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .student-id {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: var(--primary-pale);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .student-name { font-size: 16px; font-weight: 800; color: #271519; }
+    .student-loc { font-size: 12px; color: var(--muted); }
+
+    .gender-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #f8fafc;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .gender-badge.female { background: #ffe4e6; color: #be123c; }
+    .gender-badge.male { background: #e0f2fe; color: #0369a1; }
+    .gender-badge.special { background: #ffedd5; color: #c2410c; }
+
+    .hobby-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .hobby-tag {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 8px;
+      background: var(--surface-soft);
+      color: #9f1239;
+    }
+
+    .quick-info {
+      font-size: 12.5px;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .quick-info b { color: var(--text); font-weight: 600; }
+
+    .student-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .link-chip {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 8px;
+      text-decoration: none;
+      background: var(--surface-soft);
+      color: #9f1239;
+      transition: all 0.15s;
+    }
+
+    .link-chip:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .link-chip.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      cursor: help;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container header-row">
+      <h1>🌹 우리 반 데이터 아틀라스</h1>
+      <div class="badge-date">📅 2026.11 · 총 15명</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- KPI -->
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <!-- Map & Region -->
+    <section class="grid-2">
+      <div class="card col-7">
+        <div class="card-title">
+          <span>🗺️ 거주지 지도</span>
+          <span class="card-badge">클릭 시 프로필</span>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <div class="card col-5">
+        <div class="card-title">
+          <span>📍 권역별 인원</span>
+          <span class="card-badge">의정부 최다</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="regionChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 Charts -->
+    <section class="grid-2">
+      <div class="card col-4">
+        <div class="card-title">🎸 취미 TOP 카테고리</div>
+        <div class="chart-wrap">
+          <canvas id="hobbyChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card col-4">
+        <div class="card-title">🧬 성별 응답</div>
+        <div class="chart-wrap">
+          <canvas id="genderChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card col-4">
+        <div class="card-title">🚀 과제 제출률</div>
+        <div class="chart-wrap">
+          <canvas id="submissionChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Highlights -->
+    <section class="grid-2">
+      <div class="card col-6">
+        <div class="card-title">💎 가장 아끼는 것 요약</div>
+        <div class="treasure-groups" id="treasureGroups"></div>
+      </div>
+
+      <div class="card col-6">
+        <div class="card-title">✨ 한눈에 보는 포인트</div>
+        <div class="highlight-grid">
+          <div class="mini-stat">
+            <span class="mini-stat-label">💞 반 친구 샤라웃</span>
+            <span class="mini-stat-val">박준영→김보라 / 민제희→정유림</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">🦕 이색 성별 응답</span>
+            <span class="mini-stat-val">공룡 · 덩엉이 · 1황녀</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">🎸 대세 취미</span>
+            <span class="mini-stat-val">음악·악기 연주 (8명)</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-stat-label">🛠️ 링크 자동 정제</span>
+            <span class="mini-stat-val">로컬경로 · .git · 오타 보정</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Profiles -->
+    <section class="card">
+      <div class="card-title">
+        <span>👩‍💻 학생 프로필 (<span id="resultCount">15</span>명)</span>
+      </div>
+
+      <div class="controls">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="이름, 동네, 취미 검색..." />
+        </div>
+        <div class="filter-pills" id="filterPills">
+          <button class="pill-btn active" data-filter="all">전체</button>
+          <button class="pill-btn" data-filter="gyeonggi">경기도</button>
+          <button class="pill-btn" data-filter="seoul">서울</button>
+          <button class="pill-btn" data-filter="other">지방</button>
+          <button class="pill-btn" data-filter="hasMap">지도제출</button>
+        </div>
+      </div>
+
+      <div class="student-grid" id="studentGrid"></div>
+    </section>
+  </main>
+
+  <footer>2026 우리 반 데이터 시각화</footer>
+
+  <script>
+    const rawStudents = [
+      { name: "박종석", github: "https://github.com/John02-design", pages: "https://john02-design.github.io/1234/", instagram: "I_am_jongseok", hobby: "일렉기타, 영화감상", address: "경기도 의정부시 민락동", shortAddr: "의정부 민락동", regionGroup: "경기도(의정부)", coords: [37.7445, 127.0955], treasure: "나", gender: "", mapUrl: "https://john02-design.github.io/class-map/" },
+      { name: "박준영", github: "https://github.com/alex60796-bot", pages: "https://alex60796-bot.github.io/dkssudgktpdy/", instagram: "jxn.y0xn9", hobby: "피파", address: "경기도 의정부시 의정부동", shortAddr: "의정부 의정부동", regionGroup: "경기도(의정부)", coords: [37.7380, 127.0450], treasure: "김보라", gender: "공룡", mapUrl: "https://alex60796-bot.github.io/12121212/" },
+      { name: "강민서", github: "https://github.com/rlverms", pages: "https://rlverms.github.io/rlverms/", instagram: "rlverms", hobby: "쿠리만쥬 인형 구매, 영화 시청, 음악 감상", address: "서울특별시 노원구 상계동", shortAddr: "노원 상계동", regionGroup: "서울특별시", coords: [37.6550, 127.0650], treasure: "엄마", gender: "여자", mapUrl: "" },
+      { name: "박정빈", github: "https://github.com/ImSAKUYAmyfriendisRYO", pages: "https://imsakuyamyfriendisryo.github.io/-/", instagram: "@upfstpu.2", hobby: "노래듣기", address: "거제시 장평동", shortAddr: "거제 장평동", regionGroup: "기타 지역", coords: [34.8920, 128.6130], treasure: "나 ^.....^", gender: "여자", mapUrl: "" },
+      { name: "김나림", github: "github.com/nalimgim947", pages: "", instagram: "@thisisimrimthis", hobby: "그림, 음악, 운동, 애니", address: "경기도 동두천시", shortAddr: "동두천시", regionGroup: "경기도(기타)", coords: [37.9035, 127.0605], treasure: "나라고 나", gender: "덩엉이", mapUrl: "file:///C:/Users/2602/Desktop/index.html" },
+      { name: "김보라", github: "https://github.com/KIMBORA050411", pages: "https://kimbora050411.github.io/050411/", instagram: "@b0.ra.4", hobby: "공포 보기", address: "경기도 의정부시 금오동", shortAddr: "의정부 금오동", regionGroup: "경기도(의정부)", coords: [37.7520, 127.0725], treasure: "김복돌", gender: "여자", mapUrl: "https://kimbora050411.github.io/1111/" },
+      { name: "김승기", github: "https://github.com/Seung7l", pages: "https://seung7l.github.io/DoSiMoonWhaSulGye/", instagram: "@_seung7l", hobby: "네줄기타", address: "경기도 구리시 인창동", shortAddr: "구리 인창동", regionGroup: "경기도(기타)", coords: [37.6030, 127.1430], treasure: "바로바로 나!", gender: "남자", mapUrl: "https://seung7l.github.io/1117/" },
+      { name: "문민희", github: "https://github.com/massiag41-art", pages: "https://massiag41-art.github.io/1233/", instagram: "@mini3061", hobby: "게임", address: "경기도 남양주시", shortAddr: "남양주시", regionGroup: "경기도(기타)", coords: [37.6360, 127.2165], treasure: "가족, 망고, 여름", gender: "여자", mapUrl: "" },
+      { name: "민제희", github: "https://github.com/alfmekfn5", pages: "https://alfmekfn5.github.io/555/", instagram: "@mirdar.u_", hobby: "게임, 운동, 기깔나게 자기", address: "강원도 춘천시", shortAddr: "춘천시", regionGroup: "기타 지역", coords: [37.8813, 127.7299], treasure: "가족들, 이연우 << 정유림", gender: "경동대제국 1황녀", mapUrl: "https://alfmekfn5.github.io/data-atlas/" },
+      { name: "윤수아", github: "https://github.com/tndk0512-ux", pages: "https://tndk0512-ux.github.io/index/", instagram: "tnd_0_5", hobby: "기타, 애니, 음악듣기", address: "서울특별시 송파구 마천동", shortAddr: "송파 마천동", regionGroup: "서울특별시", coords: [37.4950, 127.1520], treasure: "동생", gender: "여자", mapUrl: "" },
+      { name: "이지민", github: "https://github.com/leejimin0", pages: "https://leejimin0.github.io/ezym/", instagram: "@tonmozza", hobby: "독서", address: "경기도 하남시 망월동", shortAddr: "하남 망월동", regionGroup: "경기도(기타)", coords: [37.5655, 127.1905], treasure: "가족", gender: "여자", mapUrl: "https://leejimin0.github.io/ezy1/" },
+      { name: "정유림", github: "https://github.com/yourrime0502-afk", pages: "https://yourrime0502-afk.github.io/kdu1/", instagram: "https://www.instagram.com/nollimmm?mdxt=MWNnNHBwZm5kNWI4NQ==", hobby: "콘서트 관람", address: "동대문구 답십리2동", shortAddr: "동대문 답십리2동", regionGroup: "서울특별시", coords: [37.5715, 127.0580], treasure: "우리 엄마, 이성열 미모", gender: "여자", mapUrl: "https://github.com/yourrime0502-afk/kdu1.git" },
+      { name: "최윤영", github: "https://github.com/usagi030dd", pages: "https://usagi030dd.github.io/samples/ 입니다.", instagram: "@usagi030dd", hobby: "음악 감상 및 연주(통기타&일렉)", address: "서울특별시 도봉구 쌍문동", shortAddr: "도봉 쌍문동", regionGroup: "서울특별시", coords: [37.6485, 127.0345], treasure: "엄마", gender: "여자", mapUrl: "https://github.com/usagi030dd/map.git" },
+      { name: "최윤지", github: "https://github.com/choiyg1105-cloud", pages: "https://choiyg1105-cloud.github.io/save/", instagram: "yum._.crochet", hobby: "우쿨렐레, 뜨개질", address: "경기도 포천시", shortAddr: "포천시", regionGroup: "경기도(기타)", coords: [37.8949, 127.2003], treasure: "건강", gender: "여자", mapUrl: "https://choiyg1105-cloud.github.io/data/" },
+      { name: "신단하", github: "https://github.com/danhaaaa", pages: "https://danhaaaa.github.io/sakuya/", instagram: "@danha_naa", hobby: "위시 사랑하기", address: "경기도 의정부시 신곡2동", shortAddr: "의정부 신곡2동", regionGroup: "경기도(의정부)", coords: [37.7340, 127.0680], treasure: "동생", gender: "여자", mapUrl: "" }
+    ];
+
+    function cleanUrl(url) {
+      if (!url) return "";
+      let u = url.trim().replace(/\s*입니다\.?$/, "");
+      if (u.startsWith("github.com/")) u = "https://" + u;
+      return u;
+    }
+
+    function parseInstagram(ig) {
+      if (!ig) return { handle: "", url: "" };
+      if (ig.startsWith("http")) {
+        const m = ig.match(/instagram\.com\/([^/?]+)/);
+        return { handle: m ? "@" + m[1] : "IG", url: ig };
+      }
+      const clean = ig.replace(/^@/, "");
+      return { handle: "@" + clean, url: `https://www.instagram.com/${clean}/` };
+    }
+
+    const students = rawStudents.map(s => ({
+      ...s,
+      cleanGithub: cleanUrl(s.github),
+      cleanPages: cleanUrl(s.pages),
+      igObj: parseInstagram(s.instagram),
+      isLocalMap: s.mapUrl.startsWith("file://"),
+      isGitRepoMap: s.mapUrl.endsWith(".git"),
+      hasWebMap: s.mapUrl.startsWith("http")
+    }));
+
+    // 1. KPI
+    const total = students.length;
+    const pagesCount = students.filter(s => s.cleanPages).length;
+    const webMapCount = students.filter(s => s.hasWebMap).length;
+    const gyeonggiCount = students.filter(s => s.regionGroup.startsWith("경기도")).length;
+
+    const kpiData = [
+      { label: "참여 인원", val: `${total}명`, sub: "GitHub 100%", pct: 100 },
+      { label: "페이지 배포", val: `${Math.round(pagesCount / total * 100)}%`, sub: `${pagesCount}/${total}명`, pct: pagesCount / total * 100 },
+      { label: "인물지도(웹)", val: `${Math.round(webMapCount / total * 100)}%`, sub: `${webMapCount}/${total}명`, pct: webMapCount / total * 100 },
+      { label: "경기도 거주", val: `${gyeonggiCount}명`, sub: "의정부 4명", pct: gyeonggiCount / total * 100 }
+    ];
+
+    document.getElementById("kpiGrid").innerHTML = kpiData.map(k => `
+      <div class="kpi-card">
+        <div class="kpi-top"><span>${k.label}</span><span>${k.sub}</span></div>
+        <div class="kpi-value">${k.val}</div>
+        <div class="progress-track"><div class="progress-fill" style="width:${k.pct}%"></div></div>
+      </div>
+    `).join("");
+
+    // 2. Map (Soft Rose Markers)
+    const map = L.map("map").setView([37.62, 127.15], 9);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    students.forEach(s => {
+      const color = s.regionGroup.includes("의정부") ? "#e11d48"
+        : s.regionGroup === "서울특별시" ? "#fb7185"
+        : s.regionGroup === "기타 지역" ? "#f97316"
+        : "#be123c";
+
+      L.circleMarker(s.coords, {
+        radius: 9,
+        fillColor: color,
+        color: "#ffffff",
+        weight: 2.5,
+        fillOpacity: 0.9
+      }).addTo(map).bindPopup(`
+        <div style="font-family: Pretendard, sans-serif; line-height:1.5;">
+          <b style="font-size:14px; color:#881337;">${s.name}</b> · <span style="font-size:12px; color:#8a646c;">${s.shortAddr}</span><br/>
+          <span style="font-size:12px;">🎯 ${s.hobby}</span>
+        </div>
+      `);
+    });
+
+    // 3. Charts (Rose / Coral Palette)
+    Chart.defaults.font.family = "'Pretendard', sans-serif";
+    Chart.defaults.color = "#8a646c";
+
+    const rosePalette = ["#e11d48", "#fb7185", "#fda4af", "#fb923c", "#f43f5e"];
+
+    // Region Chart
+    const regionCounts = {
+      "의정부": students.filter(s => s.address.includes("의정부시")).length,
+      "서울": students.filter(s => s.regionGroup === "서울특별시").length,
+      "경기(기타)": students.filter(s => s.regionGroup === "경기도(기타)").length,
+      "춘천·거제": students.filter(s => s.regionGroup === "기타 지역").length
+    };
+
+    new Chart(document.getElementById("regionChart"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(regionCounts),
+        datasets: [{
+          data: Object.values(regionCounts),
+          backgroundColor: ["#e11d48", "#fb7185", "#fda4af", "#fb923c"],
+          borderRadius: 8,
+          barThickness: 30
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: "#fff1f2" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    // Hobby Chart
+    const hobbyCat = { "음악·악기": 0, "영상·애니": 0, "게임": 0, "공예·그림·독서": 0, "운동·기타": 0 };
+    students.forEach(s => {
+      const h = s.hobby;
+      if (/기타|노래|음악|우쿨렐레|콘서트/.test(h)) hobbyCat["음악·악기"]++;
+      if (/영화|애니|공포/.test(h)) hobbyCat["영상·애니"]++;
+      if (/게임|피파/.test(h)) hobbyCat["게임"]++;
+      if (/그림|독서|뜨개질|인형/.test(h)) hobbyCat["공예·그림·독서"]++;
+      if (/운동|자기|위시/.test(h)) hobbyCat["운동·기타"]++;
+    });
+
+    new Chart(document.getElementById("hobbyChart"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(hobbyCat),
+        datasets: [{ data: Object.values(hobbyCat), backgroundColor: rosePalette, borderColor: "#fff", borderWidth: 2 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "60%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 10, font: { size: 11.5 } } } }
+      }
+    });
+
+    // Gender Chart
+    const genderCat = { "여자": 0, "남자": 0, "이색 응답": 0, "미입력": 0 };
+    students.forEach(s => {
+      if (s.gender === "여자") genderCat["여자"]++;
+      else if (s.gender === "남자") genderCat["남자"]++;
+      else if (!s.gender) genderCat["미입력"]++;
+      else genderCat["이색 응답"]++;
+    });
+
+    new Chart(document.getElementById("genderChart"), {
+      type: "pie",
+      data: {
+        labels: Object.keys(genderCat),
+        datasets: [{ data: Object.values(genderCat), backgroundColor: ["#fb7185", "#93c5fd", "#fdba74", "#e2e8f0"], borderColor: "#fff", borderWidth: 2 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 10, font: { size: 11.5 } } } }
+      }
+    });
+
+    // Submission Chart
+    const subCat = {
+      "GitHub": students.filter(s => s.cleanGithub).length,
+      "인스타": students.filter(s => s.igObj.url).length,
+      "Pages": pagesCount,
+      "지도(전체)": students.filter(s => s.mapUrl).length,
+      "지도(웹)": webMapCount
+    };
+
+    new Chart(document.getElementById("submissionChart"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(subCat),
+        datasets: [{ data: Object.values(subCat), backgroundColor: rosePalette, borderRadius: 6 }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, max: 15, ticks: { stepSize: 3 }, grid: { color: "#fff1f2" } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+
+    // 4. Treasure Grouped Summary
+    const treasureGroups = [
+      { label: "👪 가족·엄마·동생", count: students.filter(s => /엄마|가족|동생/.test(s.treasure)).length },
+      { label: "🙋 나 자신", count: students.filter(s => /나/.test(s.treasure)).length },
+      { label: "💞 친구·최애", count: 3 },
+      { label: "🐶 반려·건강", count: 2 }
+    ];
+    document.getElementById("treasureGroups").innerHTML = treasureGroups.map(t => `
+      <span class="t-pill">${t.label} <strong>${t.count}</strong></span>
+    `).join("") + students.map(s => `
+      <span class="t-pill" style="background:#fff; font-size:12px; padding:5px 10px;">${s.name}: ${s.treasure}</span>
+    `).join("");
+
+    // 5. Cards
+    const gridEl = document.getElementById("studentGrid");
+    const countEl = document.getElementById("resultCount");
+    const searchInput = document.getElementById("searchInput");
+    let currentFilter = "all";
+
+    function getGenderClass(g) {
+      if (g === "여자") return "female";
+      if (g === "남자") return "male";
+      if (g) return "special";
+      return "";
+    }
+
+    function renderCards() {
+      const q = searchInput.value.trim().toLowerCase();
+      const filtered = students.filter(s => {
+        if (currentFilter === "gyeonggi" && !s.regionGroup.startsWith("경기도")) return false;
+        if (currentFilter === "seoul" && s.regionGroup !== "서울특별시") return false;
+        if (currentFilter === "other" && s.regionGroup !== "기타 지역") return false;
+        if (currentFilter === "hasMap" && !s.mapUrl) return false;
+        if (!q) return true;
+        return `${s.name} ${s.address} ${s.hobby} ${s.treasure} ${s.gender}`.toLowerCase().includes(q);
+      });
+
+      countEl.textContent = filtered.length;
+
+      if (!filtered.length) {
+        gridEl.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:32px; color:var(--muted);">검색 결과가 없습니다.</div>`;
+        return;
+      }
+
+      gridEl.innerHTML = filtered.map(s => {
+        const hobbyTags = s.hobby.split(",").map(h => `<span class="hobby-tag">${h.trim()}</span>`).join("");
+
+        const links = [
+          `<a class="link-chip" href="${s.cleanGithub}" target="_blank" rel="noopener">GitHub</a>`,
+          s.cleanPages ? `<a class="link-chip" href="${s.cleanPages}" target="_blank" rel="noopener">페이지</a>` : "",
+          `<a class="link-chip" href="${s.igObj.url}" target="_blank" rel="noopener">IG</a>`,
+          s.isLocalMap
+            ? `<span class="link-chip warn" title="${s.mapUrl}">로컬파일</span>`
+            : s.hasWebMap
+            ? `<a class="link-chip" href="${s.mapUrl}" target="_blank" rel="noopener">${s.isGitRepoMap ? "지도(.git)" : "인물지도"}</a>`
+            : ""
+        ].filter(Boolean).join("");
+
+        return `
+          <article class="student-card">
+            <div>
+              <div class="student-top">
+                <div class="student-id">
+                  <div class="avatar">${s.name[0]}</div>
+                  <div>
+                    <div class="student-name">${s.name}</div>
+                    <div class="student-loc">${s.shortAddr}</div>
+                  </div>
+                </div>
+                ${s.gender ? `<span class="gender-badge ${getGenderClass(s.gender)}">${s.gender}</span>` : ""}
+              </div>
+
+              <div class="hobby-tags" style="margin-top: 12px;">${hobbyTags}</div>
+
+              <div class="quick-info" style="margin-top: 10px;">
+                <span>💎 <b>${s.treasure}</b></span>
+                <span>· ${s.igObj.handle}</span>
+              </div>
+            </div>
+
+            <div class="student-links">${links}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    searchInput.addEventListener("input", renderCards);
+    document.getElementById("filterPills").addEventListener("click", e => {
+      const btn = e.target.closest(".pill-btn");
+      if (!btn) return;
+      document.querySelectorAll(".pill-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.dataset.filter;
+      renderCards();
+    });
+
+    renderCards();
+  </script>
+</body>
+</html>
